@@ -42,9 +42,12 @@
     </div>
 
     <div class="w-full max-w-2xl mt-10 mb-20">
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex justify-between items-end mb-4">
             <h2 class="text-xl font-semibold text-gray-200">Today's Logs</h2>
-            <button id="clearBtn" class="text-xs text-gray-500 hover:text-red-400 transition-colors uppercase tracking-widest">Clear Local Storage</button>
+            <div class="flex gap-4">
+                <button id="copyAllBtn" class="text-xs text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-widest font-bold">Copy All Today (MD)</button>
+                <button id="clearBtn" class="text-xs text-gray-500 hover:text-red-400 transition-colors uppercase tracking-widest">Clear History</button>
+            </div>
         </div>
         <div class="overflow-hidden rounded-xl border border-gray-800">
             <table class="w-full text-left text-sm text-gray-400">
@@ -104,28 +107,15 @@
                 desc: desc
             };
 
-            // Markdown Formatting
             const mdRow = `| ${newLog.date} | ${newLog.range} | ${newLog.duration} | ${newLog.category} | ${newLog.desc} |`;
+            copyToClipboard(mdRow);
             
-            // Modern copy method
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(mdRow);
-            } else {
-                let textArea = document.createElement("textarea");
-                textArea.value = mdRow;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand("copy");
-                document.body.removeChild(textArea);
-            }
-            
-            alert('Copied to clipboard as Markdown!');
+            alert('Current session saved and copied!');
 
-            logs.unshift(newLog); // Newest on top
+            logs.unshift(newLog);
             localStorage.setItem('dailyLogs', JSON.stringify(logs));
             renderLogs();
             
-            // Reset UI
             document.getElementById('logForm').classList.add('hidden');
             document.getElementById('startBtn').classList.remove('hidden');
             document.getElementById('display').innerText = "00:00:00";
@@ -144,16 +134,49 @@
                     <td class="p-4 font-mono">${log.range}</td>
                     <td class="p-4"><span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs font-medium">${log.category}</span></td>
                     <td class="p-4">${log.duration} h</td>
-                    <td class="p-4"><button onclick="copySingle(${index})" class="text-blue-500 hover:text-blue-300 font-medium">Copy MD</button></td>
+                    <td class="p-4"><button onclick="copySingle(${index})" class="text-blue-500 hover:text-blue-300 font-medium text-xs">Copy Row</button></td>
                 </tr>
             `).join('');
+        }
+
+        // --- NEW FUNCTIONS ---
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text);
+            } else {
+                let textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textArea);
+            }
         }
 
         window.copySingle = (i) => {
             const l = logs[i];
             const md = `| ${l.date} | ${l.range} | ${l.duration} | ${l.category} | ${l.desc} |`;
-            navigator.clipboard.writeText(md).then(() => alert('Row copied!'));
+            copyToClipboard(md);
+            alert('Row copied!');
         };
+
+        document.getElementById('copyAllBtn').onclick = () => {
+            if (logs.length === 0) {
+                alert("No logs to copy!");
+                return;
+            }
+
+            let header = "| Date | Time Range | Duration (h) | Category | Description |\n";
+            let separator = "| :--- | :--- | :--- | :--- | :--- |\n";
+            let rows = logs.map(l => `| ${l.date} | ${l.range} | ${l.duration} | ${l.category} | ${l.desc} |`).join("\n");
+            
+            const fullTable = header + separator + rows;
+            copyToClipboard(fullTable);
+            alert('All logs copied as a Markdown table!');
+        };
+
+        // --- END NEW FUNCTIONS ---
 
         document.getElementById('clearBtn').onclick = () => {
             if(confirm('Are you sure you want to clear all history? This cannot be undone.')) { 
@@ -163,7 +186,6 @@
             }
         };
 
-        // Check if there was a running timer before refresh
         const savedStart = localStorage.getItem('currentStartTime');
         if (savedStart) {
             startTime = new Date(savedStart);
