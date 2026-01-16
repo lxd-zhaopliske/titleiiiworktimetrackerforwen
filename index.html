@@ -17,47 +17,49 @@
         
         <div class="text-center mb-8">
             <div id="display" class="text-5xl font-mono mb-6">00:00:00</div>
-            <button id="startBtn" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-bold transition-all w-full mb-3">Start Work</button>
-            <button id="stopBtn" class="hidden bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition-all w-full">Stop & Log</button>
+            <button id="startBtn" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-bold transition-all w-full mb-3 shadow-lg active:scale-95 transition-transform">Start Work</button>
+            <button id="stopBtn" class="hidden bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition-all w-full shadow-lg active:scale-95 transition-transform">Stop & Log</button>
         </div>
 
         <div id="logForm" class="hidden space-y-4 border-t border-gray-700 pt-6">
             <div>
-                <label class="block text-sm font-medium mb-1">Category</label>
-                <select id="category" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5">
-                    <option>CBE Development</option>
-                    <option>Faculty Support</option>
-                    <option>AI Workgroup</option>
+                <label class="block text-sm font-medium mb-1 text-gray-400">Category</label>
+                <select id="category" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option>CBE</option>
+                    <option>eLearning</option>
+                    <option>Professional Development</option>
                     <option>Administrative</option>
-                    <option>Union Duties</option>
+                    <option>Committee</option>
+                    <option>Others</option>
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">Description</label>
-                <textarea id="description" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5" placeholder="What did you work on?"></textarea>
+                <label class="block text-sm font-medium mb-1 text-gray-400">Activity Description</label>
+                <textarea id="description" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="What did you achieve?"></textarea>
             </div>
-            <button id="saveBtn" class="bg-blue-600 hover:bg-blue-700 text-white w-full py-2.5 rounded-lg font-bold">Save & Copy Markdown</button>
+            <button id="saveBtn" class="bg-blue-600 hover:bg-blue-700 text-white w-full py-2.5 rounded-lg font-bold shadow-md active:scale-95 transition-all">Save & Copy Markdown</button>
         </div>
     </div>
 
-    <div class="w-full max-w-2xl mt-10">
+    <div class="w-full max-w-2xl mt-10 mb-20">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold">Today's Logs</h2>
-            <button id="clearBtn" class="text-sm text-gray-500 hover:text-red-400">Clear All</button>
+            <h2 class="text-xl font-semibold text-gray-200">Today's Logs</h2>
+            <button id="clearBtn" class="text-xs text-gray-500 hover:text-red-400 transition-colors uppercase tracking-widest">Clear Local Storage</button>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-hidden rounded-xl border border-gray-800">
             <table class="w-full text-left text-sm text-gray-400">
-                <thead class="bg-gray-800 text-gray-300">
+                <thead class="bg-gray-800 text-gray-200">
                     <tr>
-                        <th class="p-3">Time</th>
-                        <th class="p-3">Category</th>
-                        <th class="p-3">Duration</th>
-                        <th class="p-3">Action</th>
+                        <th class="p-4">Time Range</th>
+                        <th class="p-4">Category</th>
+                        <th class="p-4">Duration</th>
+                        <th class="p-4">Action</th>
                     </tr>
                 </thead>
-                <tbody id="logList"></tbody>
+                <tbody id="logList" class="divide-y divide-gray-800"></tbody>
             </table>
         </div>
+        <p class="text-xs text-gray-600 mt-4 text-center italic">* Data is stored locally in your browser cache.</p>
     </div>
 
     <script>
@@ -75,7 +77,7 @@
 
         document.getElementById('startBtn').onclick = () => {
             startTime = new Date();
-            localStorage.setItem('startTime', startTime);
+            localStorage.setItem('currentStartTime', startTime.toISOString());
             timerInterval = setInterval(updateDisplay, 1000);
             document.getElementById('startBtn').classList.add('hidden');
             document.getElementById('stopBtn').classList.remove('hidden');
@@ -104,9 +106,22 @@
 
             // Markdown Formatting
             const mdRow = `| ${newLog.date} | ${newLog.range} | ${newLog.duration} | ${newLog.category} | ${newLog.desc} |`;
-            navigator.clipboard.writeText(mdRow).then(() => alert('Copied to clipboard!'));
+            
+            // Modern copy method
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(mdRow);
+            } else {
+                let textArea = document.createElement("textarea");
+                textArea.value = mdRow;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textArea);
+            }
+            
+            alert('Copied to clipboard as Markdown!');
 
-            logs.push(newLog);
+            logs.unshift(newLog); // Newest on top
             localStorage.setItem('dailyLogs', JSON.stringify(logs));
             renderLogs();
             
@@ -115,16 +130,21 @@
             document.getElementById('startBtn').classList.remove('hidden');
             document.getElementById('display').innerText = "00:00:00";
             document.getElementById('description').value = "";
+            localStorage.removeItem('currentStartTime');
         };
 
         function renderLogs() {
             const list = document.getElementById('logList');
+            if (logs.length === 0) {
+                list.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-600">No logs for today yet.</td></tr>';
+                return;
+            }
             list.innerHTML = logs.map((log, index) => `
-                <tr class="border-b border-gray-800">
-                    <td class="p-3">${log.range}</td>
-                    <td class="p-3">${log.category}</td>
-                    <td class="p-3">${log.duration} h</td>
-                    <td class="p-3"><button onclick="copySingle(${index})" class="text-blue-400">Copy</button></td>
+                <tr class="hover:bg-gray-800/50 transition-colors">
+                    <td class="p-4 font-mono">${log.range}</td>
+                    <td class="p-4"><span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs font-medium">${log.category}</span></td>
+                    <td class="p-4">${log.duration} h</td>
+                    <td class="p-4"><button onclick="copySingle(${index})" class="text-blue-500 hover:text-blue-300 font-medium">Copy MD</button></td>
                 </tr>
             `).join('');
         }
@@ -136,8 +156,21 @@
         };
 
         document.getElementById('clearBtn').onclick = () => {
-            if(confirm('Clear all logs?')) { logs = []; localStorage.removeItem('dailyLogs'); renderLogs(); }
+            if(confirm('Are you sure you want to clear all history? This cannot be undone.')) { 
+                logs = []; 
+                localStorage.removeItem('dailyLogs'); 
+                renderLogs(); 
+            }
         };
+
+        // Check if there was a running timer before refresh
+        const savedStart = localStorage.getItem('currentStartTime');
+        if (savedStart) {
+            startTime = new Date(savedStart);
+            document.getElementById('startBtn').classList.add('hidden');
+            document.getElementById('stopBtn').classList.remove('hidden');
+            timerInterval = setInterval(updateDisplay, 1000);
+        }
 
         renderLogs();
     </script>
